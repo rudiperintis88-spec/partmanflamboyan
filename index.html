@@ -193,13 +193,22 @@ body{padding:14px 12px 40px}
 @media (min-width:721px){.rp .hd h1{font-size:clamp(22px,2vw,26px)}}
 @media (max-width:900px){.rp .hr{align-self:flex-start}}
 @media (max-width:720px){.rp .hr{align-self:stretch}.rp .hd h1{font-size:clamp(22px,6.5vw,28px)}}
+
+.rp .rbtn{background:var(--color-panel);border-color:var(--color-border-line)}
+.rp .rbtn:hover{background:color-mix(in srgb,var(--color-fg) 5%,var(--color-panel))}
+
+.rp .tabs{display:flex;gap:8px;margin:0 0 var(--cds-gap-md);border-bottom:1px solid var(--color-border-line)}
+.rp .tab{font:inherit;font-size:var(--cds-font-size-heading);font-weight:600;padding:10px 18px;background:transparent;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--color-fg-muted);cursor:pointer}
+.rp .tab:hover{color:var(--color-fg)}
+.rp .tab[aria-selected=true]{color:var(--color-fg);border-bottom-color:#2563eb}
+@media (max-width:720px){.rp .tabs{gap:0}.rp .tab{flex:1 1 0;padding:10px 6px;font-size:15px}}
 </style>
 </head>
 <body class="locked">
 <div id="gate" class="gate">
   <form id="gateForm" class="gatebox" autocomplete="off">
     <h1>Pemesanan Sparepart<br>GR Flamboyan</h1>
-    <p class="muted">Masukkan nama dan password untuk membuka dashboard.</p>
+    <p class="muted">Masukkan nama dan password</p>
     <input type="text" id="gateName" placeholder="Nama" aria-label="Nama lengkap" autocomplete="off" autocapitalize="off" spellcheck="false" required autofocus>
     <input type="password" id="gateInput" placeholder="Password" aria-label="Password" autocomplete="off">
     <button type="submit">Masuk</button>
@@ -218,9 +227,13 @@ body{padding:14px 12px 40px}
         <span class="st" id="st">—</span>
         <button type="button" class="rbtn" id="rfs"><span class="ic">↻</span>Refresh</button>
       </div>
-      <p class="src">Sumber : Sheet Data PSO dan Keterangan (<span id="src-n" data-source="sumber" data-field="baris" data-row="0">—</span> baris)</p>
+      <p class="src">Sumber : Sparepart Flamboyan</p>
     </div>
   </header>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Laporan">
+    <button type="button" class="tab" role="tab" data-tab="ready" aria-selected="true">Part Ready</button>
+    <button type="button" class="tab" role="tab" data-tab="belum" aria-selected="false">Part Belum Ready</button>
+  </nav>
   <div class="tiles">
     <div class="card tile" data-tile="item" role="button" tabindex="0"><span class="lbl">Item part ready ditampilkan</span><span class="big"><b id="t-item" data-source="kpi" data-field="item" data-row="0">—</b></span></div>
     <div class="card tile" data-tile="done" role="button" tabindex="0"><span class="lbl">Sudah diambil</span><span class="big"><b id="t-done" data-source="kpi" data-field="selesai" data-row="0">—</b></span></div>
@@ -239,6 +252,7 @@ body{padding:14px 12px 40px}
       <li>Nama Barang dibaca dari kolom Nama Barang sheet Data PSO. Bila kosong, diambil dari sheet Data Part berdasarkan Kode Barang. Bila masih kosong, diambil dari kolom Nama Barang sheet Keterangan; bila tetap tidak ada tertulis "Nama barang tidak ditemukan".</li>
       <li>Service Advisor NN atau kosong berarti pemesanan via Partman. PSO yang Ket-nya "Batal" tidak masuk daftar, tetapi tetap tampil di rincian detail PSO.</li>
       <li>Baris di sheet Keterangan yang tidak punya data PSO (tanpa Nomor PSO atau tidak ditemukan di Data PSO) tetap ditampilkan di kelompok "Tanpa data PSO", hanya dengan data dari sheet Keterangan.</li>
+      <li>Tab Part Belum Ready berisi PSO yang belum punya satu pun barang dengan Tgl Ready terisi. PSO yang ready sebagian hanya tampil di tab Part Ready, sehingga tidak ada PSO yang tampil di dua tab.</li>
       <li>Umur dihitung dari Tgl Order sampai hari ini (WIB). Selisih di detail = total Jlh dikurangi total Panjar.</li>
     </ul>
   </details>
@@ -443,7 +457,7 @@ dash.calc('items', {
       const k = ket[base];
       const batal = /^batal/i.test(p.keterangan);
       const rdy = k ? k.tgl_ready : '';
-      const state = batal ? 'Batal' : (rdy ? (k.tgl_ambil ? 'Selesai' : 'Ready') : 'Belum ready');
+      const state = batal ? 'Batal' : (!k ? 'Tidak di Keterangan' : (rdy ? (k.tgl_ambil ? 'Selesai' : 'Ready') : 'Belum ready'));
       return {
         key: key,
         nomor_pso: p.nomor_pso,
@@ -530,12 +544,13 @@ dash.calc('items', {
     fillBy('no_penitipan', false);
     const gs = {};
     out.forEach(x => {
-      if (x.state === 'Batal') return;
+      if (x.state === 'Batal' || x.state === 'Tidak di Keterangan') return;
       const a = gs[x.grup] || (gs[x.grup] = {ready: false, open: false});
       if (x.state === 'Ready' || x.state === 'Selesai') a.ready = true;
       if (!x.tgl_ambil) a.open = true;
     });
     out.forEach(x => { const a = gs[x.grup]; x.aktif = !!(a && a.ready && a.open); });
+    out.forEach(x => { const a = gs[x.grup]; x.belum = !!(a && !a.ready && x.state === 'Belum ready'); });
     return out;
   }
 });
@@ -549,7 +564,7 @@ dash.calc('tampil', {
   inputs: ['items'],
   title: 'PSO yang masih ditampilkan',
   description: 'Barang (bukan batal) dari PSO yang sudah punya barang ready dan belum semua barangnya punya Tgl Ambil.',
-  fn: (items) => items.filter(x => x.aktif && x.state !== 'Batal')
+  fn: (items) => items.filter(x => x.aktif && x.state !== 'Batal' && x.state !== 'Tidak di Keterangan')
 });
 dash.calc('pso_total', {
   inputs: ['items'],
@@ -598,6 +613,37 @@ dash.calc('kpi', {
     }];
   }
 });
+dash.calc('tampil_belum', {
+  inputs: ['items'],
+  title: 'PSO belum ready',
+  description: 'Barang dari PSO yang belum punya satu pun barang dengan Tgl Ready terisi (bukan batal). PSO yang ready sebagian hanya tampil di Part Ready.',
+  fn: (items) => items.filter(x => x.belum)
+});
+dash.calc('sa_belum', {
+  inputs: ['tampil_belum'],
+  title: 'Ringkasan belum ready per SA',
+  description: 'Jumlah item dan PSO belum ready per Service Advisor.',
+  fn: (rows) => {
+    const g = {};
+    rows.forEach(r => {
+      const a = g[r.service_advisor] || (g[r.service_advisor] = {service_advisor: r.service_advisor, item: 0, psos: {}});
+      a.item += 1;
+      a.psos[r.grup] = 1;
+    });
+    return Object.values(g).map(a => ({service_advisor: a.service_advisor, item: a.item, pso: Object.keys(a.psos).length}));
+  }
+});
+dash.calc('kpi_belum', {
+  inputs: ['tampil_belum'],
+  title: 'Angka utama belum ready',
+  description: 'Item belum ready, PSO belum ready, item via Partman dan umur order terlama.',
+  fn: (rows) => [{
+    item: rows.length,
+    pso: new Set(rows.map(r => r.grup)).size,
+    partman: rows.filter(x => x.service_advisor === 'Partman (NN)').length,
+    umur_maks: Math.max(0, ...rows.map(x => x.umur_hari || 0))
+  }]
+});
 dash.loader('info', {
   description: 'Teks sel A1 sheet Keterangan, dibaca dari isi file Google Sheets',
   fn: ({answer}) => {
@@ -611,7 +657,8 @@ dash.loader('info', {
   }
 });
 (function () {
-  const st = {sa: 'Semua', q: '', done: false};
+  const stAll = {ready: {sa: 'Semua', q: '', done: false}, belum: {sa: 'Semua', q: '', done: false}};
+  let st = stAll.ready, mode = 'ready';
   const nf = new Intl.NumberFormat('id-ID');
   const fmt = v => nf.format(v);
   const rp = document.getElementById('rp');
@@ -743,6 +790,14 @@ dash.loader('info', {
     ['nama_barang', 'Nama Barang', ''], ['service_advisor', 'Service Advisor', ''], ['tgl_ready', 'Tgl Ready', ''], ['tgl_ambil', 'Tgl Ambil', '']
   ];
   function tileData(kind) {
+    if (mode === 'belum') {
+      const rb = dash.data('tampil_belum'), kb = dash.data('kpi_belum');
+      if (rb.status !== 'ok') return null;
+      const kbr = kb.status === 'ok' && kb.data.length ? kb.data[0] : null;
+      if (kind === 'part') return {title: 'Belum ready via Partman (NN)', rows: rb.data.filter(x => x.service_advisor === 'Partman (NN)')};
+      if (kind === 'umur') return {title: 'Umur order terlama', rows: kbr ? rb.data.filter(x => x.umur_hari === kbr.umur_maks) : []};
+      return {title: 'PSO yang belum ready', rows: rb.data};
+    }
     const r = dash.data('ready'), k = dash.data('kpi');
     if (r.status !== 'ok') return null;
     const kr = k.status === 'ok' && k.data.length ? k.data[0] : null;
@@ -894,7 +949,7 @@ dash.loader('info', {
   });
 
   function draw() {
-    const k = dash.data('kpi'), s = dash.data('sa_summary'), r = dash.data('tampil');
+    const k = dash.data('kpi'), s = dash.data(mode === 'ready' ? 'sa_summary' : 'sa_belum'), r = dash.data(mode === 'ready' ? 'tampil' : 'tampil_belum');
     const inf = dash.data('info'), inff = dash.data('info_file'), sm0 = dash.data('sumber');
     const perEl = document.getElementById('per');
     const live = inf.status === 'ok' && inf.data.length && inf.data[0].per;
@@ -907,10 +962,16 @@ dash.loader('info', {
     rb.disabled = !!inf.refreshing;
     rb.querySelector('.ic').classList.toggle('spin', !!inf.refreshing);
     setStatus(!!live);
-    document.getElementById('src-n').textContent = sm0.status === 'ok' && sm0.data.length ? fmt(sm0.data[0].baris) : '—';
-    const kr = k.status === 'ok' && k.data.length ? k.data[0] : null;
-    [['t-item', 'item'], ['t-done', 'selesai'], ['t-part', 'partman'], ['t-umur', 'umur_maks']].forEach(p => {
-      document.getElementById(p[0]).textContent = kr ? fmt(kr[p[1]]) : '—';
+    const kx = mode === 'ready' ? k : dash.data('kpi_belum');
+    const kr = kx.status === 'ok' && kx.data.length ? kx.data[0] : null;
+    const flds = mode === 'ready' ? ['item', 'selesai', 'partman', 'umur_maks'] : ['item', 'pso', 'partman', 'umur_maks'];
+    const labs = mode === 'ready' ? ['Item part ready ditampilkan', 'Sudah diambil', 'Ready via Partman (NN)', 'Umur order terlama (hari)'] : ['Item part belum ready', 'PSO belum ready', 'Belum ready via Partman (NN)', 'Umur order terlama (hari)'];
+    ['t-item', 't-done', 't-part', 't-umur'].forEach((id, i) => {
+      const e = document.getElementById(id);
+      e.textContent = kr ? fmt(kr[flds[i]]) : '—';
+      e.setAttribute('data-source', mode === 'ready' ? 'kpi' : 'kpi_belum');
+      e.setAttribute('data-field', flds[i]);
+      e.closest('.tile').querySelector('.lbl').textContent = labs[i];
     });
     const all = r.status === 'ok' ? r.data : [];
     const names = Array.from(new Set(all.map(x => x.service_advisor))).sort(saOrder);
@@ -932,13 +993,13 @@ dash.loader('info', {
     const host = document.getElementById('groups');
     host.textContent = '';
     if (!rows.length) {
-      host.appendChild(el('div', 'empty', r.status === 'ok' ? 'Tidak ada part ready yang cocok dengan filter ini.' : ''));
+      host.appendChild(el('div', 'empty', r.status === 'ok' ? (mode === 'ready' ? 'Tidak ada part ready yang cocok dengan filter ini.' : 'Tidak ada part belum ready yang cocok dengan filter ini.') : ''));
       return;
     }
     const itAll = dash.data('items');
     const cnt = {};
     if (itAll.status === 'ok') itAll.data.forEach(z => {
-      if (z.state === 'Batal') return;
+      if (z.state === 'Batal' || z.state === 'Tidak di Keterangan') return;
       const c = cnt[z.grup] || (cnt[z.grup] = {n: 0, ready: 0, belum: 0, ambil: 0});
       c.n += 1;
       if (z.state === 'Ready') c.ready += 1; else if (z.state === 'Selesai') c.ambil += 1; else c.belum += 1;
@@ -972,12 +1033,12 @@ dash.loader('info', {
         mark(a, 'sa_summary', 'item', 'service_advisor=' + enc(n));
         mark(b, 'sa_summary', 'pso', 'service_advisor=' + enc(n));
       }
-      meta.appendChild(a); meta.appendChild(document.createTextNode(' item ready · ')); meta.appendChild(b); meta.appendChild(document.createTextNode(' PSO'));
+      meta.appendChild(a); meta.appendChild(document.createTextNode(mode === 'ready' ? ' item ready · ' : ' item belum ready · ')); meta.appendChild(b); meta.appendChild(document.createTextNode(' PSO'));
       head.appendChild(meta);
       g.appendChild(head);
       const sc = el('div', 'scroll');
       const t = document.createElement('table');
-      t.setAttribute('data-source', 'tampil');
+      t.setAttribute('data-source', mode === 'ready' ? 'tampil' : 'tampil_belum');
       t.setAttribute('data-row-key', 'key');
       const hr = document.createElement('tr');
       hr.appendChild(el('th', 'num', 'No'));
@@ -993,7 +1054,7 @@ dash.loader('info', {
         const tr = document.createElement('tr');
         tr.setAttribute('data-key', x.key);
         tr.tabIndex = 0;
-        if (x.state !== 'Ready') tr.className = 'done';
+        if (mode === 'ready' && x.state !== 'Ready') tr.className = 'done';
         const tdn = el('td', 'num', String(idx + 1));
         tdn.setAttribute('data-label', 'No'); tdn.setAttribute('data-col', 'no');
         tr.appendChild(tdn);
@@ -1023,6 +1084,14 @@ dash.loader('info', {
       host.appendChild(g);
     });
   }
+  document.querySelectorAll('#rp .tab').forEach(b => b.addEventListener('click', () => {
+    const m = b.getAttribute('data-tab');
+    if (m === mode) return;
+    mode = m; st = stAll[m];
+    document.querySelectorAll('#rp .tab').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    document.getElementById('q').value = st.q;
+    draw();
+  }));
   document.getElementById('q').addEventListener('input', e => { st.q = e.target.value; draw(); });
   function stamp() {
     const d = new Date();
@@ -1035,7 +1104,7 @@ dash.loader('info', {
     st.textContent = '';
     const m = dash.mode();
     if (dash.data('info').refreshing) {
-      st.textContent = 'Membaca ulang Data PSO, Keterangan, dan Data Part…';
+      st.textContent = 'Menyinkronkan...';
     } else if (m === 'live') {
       st.appendChild(document.createTextNode('Live · tersinkron '));
       st.appendChild(el('b', '', lastStamp || '—'));
