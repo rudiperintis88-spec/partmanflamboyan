@@ -188,6 +188,11 @@ body{padding:14px 12px 40px}
 .rp .pp-body dt{font-size:12px}
 .rp .tot{padding:10px 4px;font-size:13px;gap:4px 14px}
 }
+
+.rp .hr{align-self:flex-end}
+@media (min-width:721px){.rp .hd h1{font-size:clamp(22px,2vw,26px)}}
+@media (max-width:900px){.rp .hr{align-self:flex-start}}
+@media (max-width:720px){.rp .hr{align-self:stretch}.rp .hd h1{font-size:clamp(22px,6.5vw,28px)}}
 </style>
 </head>
 <body class="locked">
@@ -216,7 +221,6 @@ body{padding:14px 12px 40px}
       <p class="src">Sumber : Sheet Data PSO dan Keterangan (<span id="src-n" data-source="sumber" data-field="baris" data-row="0">—</span> baris)</p>
     </div>
   </header>
-  <p class="sub">Part yang sudah ready menurut sheet Keterangan dan belum punya Tgl Ambil, dikelompokkan per Service Advisor. Satu baris per nomor PSO; klik baris untuk melihat semua barangnya.</p>
   <div class="tiles">
     <div class="card tile" data-tile="item" role="button" tabindex="0"><span class="lbl">Item part ready ditampilkan</span><span class="big"><b id="t-item" data-source="kpi" data-field="item" data-row="0">—</b></span></div>
     <div class="card tile" data-tile="done" role="button" tabindex="0"><span class="lbl">Sudah diambil</span><span class="big"><b id="t-done" data-source="kpi" data-field="selesai" data-row="0">—</b></span></div>
@@ -228,7 +232,7 @@ body{padding:14px 12px 40px}
     <input class="search" id="q" type="search" placeholder="Cari PSO, customer, no polisi, kode barang" aria-label="Cari">
   </div>
   <div class="groups" id="groups"></div>
-  <details>
+  <details id="aturan" hidden>
     <summary>Aturan yang dipakai</summary>
     <ul>
       <li>PSO dicocokkan dengan sheet Keterangan lewat Nomor PSO dan Kode Barang. Satu PSO tetap tampil selama masih ada barangnya yang Tgl Ambil-nya kosong, asalkan sudah ada barangnya yang Tgl Ready-nya terisi. PSO baru hilang kalau semua barangnya sudah punya Tgl Ambil.</li>
@@ -1099,6 +1103,8 @@ dash.loader('info', {
         if (b) b.hidden = true;
       });
     }
+    var a = document.getElementById('aturan');
+    if (a) a.hidden = (role !== 'master');
   }
   const gate = document.getElementById('gate'), gateForm = document.getElementById('gateForm'),
         gateName = document.getElementById('gateName'), gateInput = document.getElementById('gateInput'),
