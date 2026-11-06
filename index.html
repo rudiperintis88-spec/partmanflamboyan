@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pemesanan Sparepart GR Flamboyan</title>
+<meta property="og:title" content="Pemesanan Sparepart GR Flamboyan">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Pemesanan Sparepart GR Flamboyan">
 <style>
 :root{--color-fg:#1f2430;--color-fg-muted:#6b7280;--color-bg:#ffffff;--color-panel:#ffffff;--color-border-line:#e1e4ea;--color-ok:#15803d;
 --cds-font-size-caption:12px;--cds-font-size-body:14px;--cds-font-size-heading:16px;--cds-font-size-title:28px;--cds-font-weight-medium:500;
@@ -762,7 +766,15 @@ dash.loader('info', {
     });
     const thead = document.createElement('thead'); thead.appendChild(hr); t.appendChild(thead);
     const tb = document.createElement('tbody');
-    d.rows.forEach((x, idx) => {
+    const gm = {}, uniq = [];
+    const itemF = ['kode_barang', 'nama_barang', 'tgl_ready', 'tgl_ambil'];
+    d.rows.forEach(r0 => {
+      let g = gm[r0.grup];
+      if (!g) { g = gm[r0.grup] = {row: Object.assign({}, r0), sets: {}}; itemF.forEach(f => { g.sets[f] = []; }); uniq.push(g); }
+      itemF.forEach(f => { if (r0[f] && g.sets[f].indexOf(r0[f]) < 0) g.sets[f].push(r0[f]); });
+    });
+    uniq.forEach(g => { itemF.forEach(f => { g.row[f] = g.sets[f].join(', '); }); });
+    uniq.map(g => g.row).forEach((x, idx) => {
       const tr = document.createElement('tr');
       tr.setAttribute('data-key', x.key);
       tr.tabIndex = 0;
