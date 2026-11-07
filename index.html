@@ -390,10 +390,10 @@ body{padding:14px 12px 40px}
     busy = true; refreshing = true; notify();
     try {
       const stamp = Date.now();
-      const texts = await Promise.all(GIDS.map(g => fetch(BASE + g + '&_=' + stamp, {cache: 'no-store'}).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })));
+      const texts = await Promise.all(GIDS.map(g => fetch(BASE + g + '&_=' + stamp, {cache: 'no-store'}).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }).catch(() => '')));
       const res = classify(texts);
-      if (!res.pso || !res.pso.length || !res.keterangan || !res.keterangan.length || !res.part || !res.part.length) throw new Error('Format sheet tidak dikenali');
-      over.pso = res.pso; over.keterangan = res.keterangan; over.part = res.part; per = res.per;
+      if (!res.pso || !res.pso.length || !res.keterangan || !res.keterangan.length) throw new Error('Format sheet tidak dikenali');
+      over.pso = res.pso; over.keterangan = res.keterangan; over.part = res.part || []; per = res.per;
       Object.keys(cache).forEach(k => delete cache[k]);
       live = true; loaded = true;
     } catch (e) {
