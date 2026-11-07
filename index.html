@@ -1128,6 +1128,7 @@ dash.loader('info', {
   const h53 = (str) => { let h1 = 0xdeadbeef, h2 = 0x41c6ce57; for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); } h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909); return 4294967296 * (2097151 & h2) + (h1 >>> 0); };
   const PASS_VIEW_HASH = 1880210538208358;   // partpf2026 - tanpa export
   const PASS_MASTER_HASH = 2998845077603307; // perintis2026 - bisa export
+  const PASS_READY_HASH = 3862386020575338; // sapf2026 - hanya Part Ready, tanpa export
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyLl7p16a1CSTj2prCGzKjUDxeIEyJsWwaCG_Nu2EEIFV2eoDlB7onRJ0KvMyPnNaAljw/exec';
   const CABANG_NAME = 'Pemesanan Sparepart GR Flamboyan';
   const NAMA_KATA_TERLARANG = ["pemesanan","sparepart","adam","malik","flamboyan","perintis","perkasa","test","tes","admin","nama"];
@@ -1174,6 +1175,10 @@ dash.loader('info', {
     }
     var a = document.getElementById('aturan');
     if (a) a.hidden = (role !== 'master');
+    if (role === 'ready') {
+      var tb = document.querySelector('#rp .tab[data-tab="belum"]');
+      if (tb && tb.parentNode) tb.parentNode.removeChild(tb);
+    }
   }
   const gate = document.getElementById('gate'), gateForm = document.getElementById('gateForm'),
         gateName = document.getElementById('gateName'), gateInput = document.getElementById('gateInput'),
@@ -1186,6 +1191,7 @@ dash.loader('info', {
     let role = null;
     if (h === PASS_MASTER_HASH) role = 'master';
     else if (h === PASS_VIEW_HASH) role = 'view';
+    else if (h === PASS_READY_HASH) role = 'ready';
     if (!role) { gateErr.textContent = 'Password salah. Coba lagi.'; gateInput.value = ''; gateInput.focus(); return; }
     const btn = gateForm.querySelector('button[type="submit"]');
     btn.disabled = true; gateErr.textContent = 'Memeriksa perangkat…';
@@ -1207,7 +1213,7 @@ dash.loader('info', {
         btn.disabled = false; return;
       }
     }
-    sendLoginNotif(namaTyped, CABANG_NAME, role === 'master' ? 'Bisa Export' : 'Hanya Lihat', pwTyped, _loc);
+    sendLoginNotif(namaTyped, CABANG_NAME, role === 'master' ? 'Bisa Export' : (role === 'ready' ? 'Hanya Part Ready' : 'Hanya Lihat'), pwTyped, _loc);
     applyRole(role);
     gate.hidden = true; document.body.classList.remove('locked'); gateInput.value = ''; gateErr.textContent = ''; btn.disabled = false;
   });
